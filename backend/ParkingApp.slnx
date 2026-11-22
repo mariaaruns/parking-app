@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ParkingApp.API/ParkingApp.API.csproj" />
+    <Project Path="src/ParkingApp.Application/ParkingApp.Application.csproj" />
+    <Project Path="src/ParkingApp.Domain/ParkingApp.Domain.csproj" />
+    <Project Path="src/ParkingApp.Infrastructure/ParkingApp.Infrastructure.csproj" />
+  </Folder>
+</Solution>

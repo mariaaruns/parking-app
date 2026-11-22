@@ -1,0 +1,531 @@
+<div class="mx-auto max-w-[1500px] space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600">Management & analytics</p>
+      <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Branch command centre</h1>
+      <p class="mt-1 text-sm text-slate-500">Revenue, parking logs, audit trail and master configuration.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (auth.role() === 'SuperAdmin') {
+        <select class="input h-10 w-48 py-2 text-xs" [ngModel]="branchId()" (ngModelChange)="onBranchChange($event)">
+          @for (branch of branches(); track branch.id) {
+            <option [ngValue]="branch.id">{{ branch.name }}</option>
+          }
+        </select>
+      }
+      <button type="button" class="btn-ghost" (click)="loadAll()" [disabled]="loading()">
+        <span [class.animate-spin]="loading()">⟳</span> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-100/80 p-1">
+    @for (item of views; track item.key) {
+      <button type="button" class="tab whitespace-nowrap" [class.tab-active]="view() === item.key" (click)="view.set(item.key)">
+        {{ item.icon }} {{ item.label }}
+      </button>
+    }
+  </div>
+
+  @if (view() === 'overview') {
+    <div class="space-y-5 animate-fade">
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="card card-pad border border-slate-200 bg-white">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total revenue</p>
+          <p class="mt-1 text-2xl font-black text-slate-900">{{ (analytics()?.totalRevenue ?? 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</p>
+          <p class="mt-1 text-[11px] text-blue-600 font-medium">All paid sessions</p>
+        </div>
+        <div class="card card-pad border border-slate-200 bg-white">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Today</p>
+          <p class="mt-1 text-2xl font-black text-slate-900">{{ (analytics()?.todayRevenue ?? 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</p>
+          <p class="mt-1 text-[11px] text-slate-500">Since 00:00 UTC</p>
+        </div>
+        <div class="card card-pad border border-slate-200 bg-white">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Active vehicles</p>
+          <p class="mt-1 text-2xl font-black text-slate-900">{{ analytics()?.activeSessions ?? 0 }}</p>
+          <p class="mt-1 text-[11px] text-amber-600 font-medium">{{ analytics()?.completedSessions ?? 0 }} completed tickets</p>
+        </div>
+        <div class="card card-pad flex items-center gap-4 border border-slate-200 bg-white">
+          <div
+            class="grid h-14 w-14 shrink-0 place-items-center rounded-full"
+            [style.background]="'conic-gradient(#2563eb ' + occupancyPct() + '%, #e2e8f0 0)'"
+          >
+            <span class="grid h-10 w-10 place-items-center rounded-full bg-white text-xs font-black text-slate-900 shadow-sm">{{ occupancyPct() }}%</span>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Occupancy</p>
+            <p class="mt-0.5 text-lg font-black text-slate-900">{{ analytics()?.occupiedSlots ?? 0 }} / {{ analytics()?.totalSlots ?? 0 }}</p>
+            <p class="text-[11px] text-slate-500">bays occupied</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-5 xl:grid-cols-2">
+        <section class="card card-pad border border-slate-200 bg-white">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Revenue mix</p>
+              <h2 class="mt-0.5 text-lg font-bold text-slate-900">Bikes vs Cars vs Heavy</h2>
+            </div>
+            <span class="chip border border-slate-200 bg-slate-50 text-slate-600">All time</span>
+          </div>
+
+          <div class="mt-6 space-y-5">
+            @for (row of analytics()?.revenueByType ?? []; track row.vehicleType) {
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-xs">
+                  <span class="flex items-center gap-2 font-semibold text-slate-700">
+                    <span>{{ meta[row.vehicleType].icon }}</span> {{ meta[row.vehicleType].label }}
+                    <span class="text-slate-400">({{ row.sessionCount }})</span>
+                  </span>
+                  <span class="font-mono font-bold text-slate-900">{{ row.totalRevenue | currency: 'INR' : 'symbol' : '1.0-0' }}</span>
+                </div>
+                <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full transition-all duration-700" [class]="barColor(row.vehicleType)" [style.width.%]="barPct(row.totalRevenue)"></div>
+                </div>
+              </div>
+            } @empty {
+              <p class="py-8 text-center text-sm text-slate-500">No completed payments yet.</p>
+            }
+          </div>
+        </section>
+
+        <section class="card card-pad border border-slate-200 bg-white">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</p>
+              <h2 class="mt-0.5 text-lg font-bold text-slate-900">Daily collection</h2>
+            </div>
+            <span class="chip border border-blue-200 bg-blue-50 text-blue-700 font-semibold">{{ (analytics()?.todayRevenue ?? 0) | currency: 'INR' : 'symbol' : '1.0-0' }} today</span>
+          </div>
+
+          <div class="mt-6 flex h-40 items-end gap-2">
+            @for (day of analytics()?.last7DaysRevenue ?? []; track day.date) {
+              <div class="group flex flex-1 flex-col items-center gap-2">
+                <div class="flex w-full flex-1 items-end">
+                  <div
+                    class="w-full rounded-t-lg bg-gradient-to-t from-blue-600 to-sky-400 transition-all duration-500 group-hover:from-blue-700 group-hover:to-sky-500 shadow-sm"
+                    [style.height.%]="dayPct(day.revenue)"
+                    [title]="(day.revenue | currency: 'INR' : 'symbol' : '1.0-0') ?? ''"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-semibold uppercase text-slate-500">{{ day.date | date: 'EEE' }}</span>
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+    </div>
+  }
+
+  @if (view() === 'logs') {
+    <div class="space-y-4 animate-fade">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1">
+          @for (tab of logTabs; track tab) {
+            <button type="button" class="tab" [class.tab-active]="logTab() === tab" (click)="logTab.set(tab)">
+              {{ tab }}
+              <span class="ml-1.5 rounded-full bg-slate-200/80 px-1.5 py-0.5 text-[10px] text-slate-700">{{ countFor(tab) }}</span>
+            </button>
+          }
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            type="search"
+            class="input h-10 w-48 py-2 text-xs sm:w-64"
+            placeholder="Search plate, slot, driver…"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+          />
+          <select class="input h-10 w-32 py-2 text-xs" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+            <option value="all">All types</option>
+            @for (type of vehicleTypes; track type) {
+              <option [value]="type">{{ meta[type].short }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <section class="card overflow-hidden border border-slate-200 bg-white">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[1000px]">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+              <tr>
+                <th class="th">Vehicle</th>
+                <th class="th">Slot / zone</th>
+                <th class="th">Entry</th>
+                <th class="th">Exit</th>
+                <th class="th">Payment</th>
+                <th class="th">Rent</th>
+                <th class="th">Status</th>
+                <th class="th text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (session of filteredSessions(); track session.id) {
+                <tr class="transition hover:bg-slate-50/70">
+                  <td class="td">
+                    <div class="flex items-center gap-2.5">
+                      <span class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-base">{{ meta[session.vehicleType].icon }}</span>
+                      <div>
+                        <p class="font-mono text-sm font-bold text-slate-900">{{ session.vehicleNumber }}</p>
+                        <p class="text-[11px] text-slate-500">{{ session.checkedInBy }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="td">
+                    <span class="font-mono text-sm font-bold text-blue-600">{{ session.slotCode }}</span>
+                    <span class="text-slate-500"> • {{ session.zoneName }}</span>
+                  </td>
+                  <td class="td text-slate-600">{{ session.entryTime | date: 'dd MMM, HH:mm' }}</td>
+                  <td class="td text-slate-600">{{ session.exitTime ? (session.exitTime | date: 'dd MMM, HH:mm') : '—' }}</td>
+                  <td class="td">
+                    @if (session.isDeleted) {
+                      <span class="chip border border-rose-200 bg-rose-50 text-rose-700">Deleted</span>
+                    } @else if (session.paymentStatus === 'Paid') {
+                      <span class="chip border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold">{{ session.paymentMode }}</span>
+                    } @else {
+                      <span class="chip border border-amber-200 bg-amber-50 text-amber-700 font-semibold">Pending</span>
+                    }
+                  </td>
+                  <td class="td font-mono font-bold text-slate-900">{{ session.calculatedRent | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                  <td class="td">
+                    @if (session.isDeleted) {
+                      <span class="chip border border-rose-200 bg-rose-50 text-rose-700" [title]="session.deletionReason ?? ''">Soft-deleted</span>
+                    } @else if (session.status === 'Active') {
+                      <span class="chip border border-blue-200 bg-blue-50 text-blue-700 font-semibold">Active</span>
+                    } @else {
+                      <span class="chip border border-slate-200 bg-slate-50 text-slate-600">Completed</span>
+                    }
+                  </td>
+                  <td class="td">
+                    <div class="flex justify-end gap-1.5">
+                      <button type="button" class="btn-ghost btn-xs" (click)="openAudit(session)">Audit</button>
+                      @if (!session.isDeleted) {
+                        <button type="button" class="btn-danger btn-xs" (click)="openDelete(session)">Delete</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="px-5 py-12 text-center text-sm text-slate-500">No tickets in this tab.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (view() === 'config') {
+    <div class="space-y-5 animate-fade">
+      <section class="card card-pad border border-slate-200 bg-white">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Rate cards</p>
+            <h2 class="mt-0.5 text-lg font-bold text-slate-900">Rent engine per vehicle type</h2>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            @for (type of missingRateTypes(); track type) {
+              <button type="button" class="btn-ghost btn-xs" (click)="addRateCard(type)">+ Add {{ meta[type].short }} rate</button>
+            }
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 lg:grid-cols-3">
+          @for (card of rateCards(); track card.id) {
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">{{ meta[card.vehicleType].icon }}</span>
+                  <div>
+                    <p class="text-sm font-bold text-slate-900">{{ meta[card.vehicleType].label }}</p>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-500">Grace {{ card.gracePeriodMinutes }} min</p>
+                  </div>
+                </div>
+                <div class="flex gap-1">
+                  <button type="button" class="btn-ghost btn-xs" (click)="openRate(card)">Edit</button>
+                  <button type="button" class="btn-ghost btn-xs text-rose-600" (click)="removeRateCard(card)">×</button>
+                </div>
+              </div>
+              <dl class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                  <dt class="text-[10px] uppercase text-slate-500">Base</dt>
+                  <dd class="font-bold text-slate-900">{{ card.baseRate | currency: 'INR' : 'symbol' : '1.0-0' }} / {{ card.baseHours }}h</dd>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                  <dt class="text-[10px] uppercase text-slate-500">Extra hour</dt>
+                  <dd class="font-bold text-slate-900">{{ card.additionalHourlyRate | currency: 'INR' : 'symbol' : '1.0-0' }}</dd>
+                </div>
+                <div class="col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2">
+                  <dt class="text-[10px] uppercase text-blue-700">24h cap</dt>
+                  <dd class="font-bold text-blue-900">{{ card.dailyMaxCap | currency: 'INR' : 'symbol' : '1.0-0' }}</dd>
+                </div>
+              </dl>
+            </div>
+          } @empty {
+            <p class="py-6 text-sm text-slate-500">No rate cards for this branch.</p>
+          }
+        </div>
+      </section>
+
+      <div class="grid gap-5 xl:grid-cols-[380px_1fr]">
+        <section class="card card-pad border border-slate-200 bg-white">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Zones</p>
+          <h2 class="mt-0.5 text-lg font-bold text-slate-900">Vehicle zones</h2>
+
+          <div class="mt-4 space-y-2">
+            @for (zone of zones(); track zone.id) {
+              <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition"
+                [class]="selectedZoneId() === zone.id ? 'border-blue-600 bg-blue-50/70 shadow-sm' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'"
+                (click)="selectZone(zone)"
+              >
+                <span class="flex items-center gap-2">
+                  <span class="text-base">{{ meta[zone.vehicleType].icon }}</span>
+                  <span>
+                    <span class="block font-mono text-sm font-bold text-slate-900">{{ zone.name }}</span>
+                    <span class="block text-[10px] text-slate-500">{{ meta[zone.vehicleType].label }}</span>
+                  </span>
+                </span>
+                <span class="flex items-center gap-2">
+                  <span class="chip border border-slate-200 bg-white text-slate-700">{{ zone.totalSlots }}</span>
+                  <span class="text-slate-400 hover:text-rose-600" (click)="$event.stopPropagation(); removeZone(zone)">×</span>
+                </span>
+              </button>
+            } @empty {
+              <p class="py-3 text-sm text-slate-500">No zones configured.</p>
+            }
+          </div>
+
+          <div class="mt-5 border-t border-slate-100 pt-4">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Add zone</p>
+            <div class="mt-2 grid grid-cols-[1fr_auto] gap-2">
+              <input class="input" placeholder="Zone-D" [ngModel]="newZoneName()" (ngModelChange)="newZoneName.set($event)" />
+              <select class="input w-24" [ngModel]="newZoneType()" (ngModelChange)="newZoneType.set($event)">
+                @for (type of vehicleTypes; track type) {
+                  <option [value]="type">{{ meta[type].short }}</option>
+                }
+              </select>
+            </div>
+            <button type="button" class="btn-primary mt-2 w-full" (click)="createZone()">Create zone</button>
+          </div>
+        </section>
+
+        <section class="card card-pad border border-slate-200 bg-white">
+          @if (selectedZone(); as zone) {
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Slots in {{ zone.name }}</p>
+                <h2 class="mt-0.5 text-lg font-bold text-slate-900">{{ meta[zone.vehicleType].label }} bays</h2>
+              </div>
+              <div class="flex items-center gap-2">
+                <input class="input h-9 w-28 py-1.5 text-xs uppercase" placeholder="C-16" [ngModel]="newSlotCode()" (ngModelChange)="newSlotCode.set($event.toUpperCase())" />
+                <button type="button" class="btn-primary btn-xs" (click)="addSlot()">+ Slot</button>
+              </div>
+            </div>
+
+            <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              @for (slot of zoneSlots(); track slot.id) {
+                <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span class="font-mono text-sm font-bold text-slate-900">{{ slot.slotCode }}</span>
+                  <div class="flex items-center gap-1.5">
+                    <select class="input h-8 w-28 py-1 text-[11px]" [ngModel]="slot.status" (ngModelChange)="setSlotStatus(slot, $event)">
+                      <option value="Available">Available</option>
+                      <option value="Occupied">Occupied</option>
+                      <option value="Reserved">Reserved</option>
+                      <option value="Maintenance">Maintenance</option>
+                    </select>
+                    <button type="button" class="text-slate-400 transition hover:text-rose-600" (click)="removeSlot(slot)">×</button>
+                  </div>
+                </div>
+              } @empty {
+                <p class="py-4 text-sm text-slate-500">No slots in this zone yet.</p>
+              }
+            </div>
+          } @else {
+            <div class="grid h-full min-h-52 place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+              Select a zone to manage its slots.
+            </div>
+          }
+        </section>
+      </div>
+    </div>
+  }
+
+  @if (view() === 'reconciliation') {
+    <section class="card overflow-hidden border border-slate-200 bg-white animate-fade">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Shift reconciliation</p>
+          <h2 class="mt-0.5 text-lg font-bold text-slate-900">Cash / UPI / Card by staff</h2>
+        </div>
+        <input type="date" class="input h-10 w-44 py-2 text-xs" [ngModel]="reconDate()" (ngModelChange)="onReconDate($event)" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[720px]">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+            <tr>
+              <th class="th">Staff member</th>
+              <th class="th text-right">Sessions</th>
+              <th class="th text-right">Cash</th>
+              <th class="th text-right">UPI</th>
+              <th class="th text-right">Card</th>
+              <th class="th text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (row of reconciliation(); track row.staffId) {
+              <tr class="transition hover:bg-slate-50/70">
+                <td class="td font-semibold text-slate-900">{{ row.staffName }}</td>
+                <td class="td text-right text-slate-700">{{ row.sessionsHandled }}</td>
+                <td class="td text-right text-slate-700">{{ row.cashCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="td text-right text-slate-700">{{ row.upiCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="td text-right text-slate-700">{{ row.cardCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td class="td text-right font-mono font-bold text-blue-600">{{ row.totalCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">No settled tickets on this date.</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot class="border-t border-slate-200 bg-slate-50/70">
+            <tr>
+              <td class="td font-bold text-slate-900">Shift total</td>
+              <td class="td text-right font-bold text-slate-900">{{ reconTotal('sessionsHandled') }}</td>
+              <td class="td text-right font-bold text-slate-900">{{ reconTotal('cashCollected') | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+              <td class="td text-right font-bold text-slate-900">{{ reconTotal('upiCollected') | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+              <td class="td text-right font-bold text-slate-900">{{ reconTotal('cardCollected') | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+              <td class="td text-right font-mono font-bold text-blue-600">{{ reconTotal('totalCollected') | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  }
+</div>
+
+<!-- Audit drawer -->
+@if (auditOpen()) {
+  <div class="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm animate-fade" (click)="closeAudit()">
+    <aside class="h-full w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-5 shadow-2xl animate-slide-left text-slate-800" (click)="$event.stopPropagation()">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Audit history</p>
+          <h3 class="mt-1 text-lg font-bold text-slate-900">
+            {{ auditSession()?.vehicleNumber }} <span class="text-slate-400">•</span> {{ auditSession()?.slotCode }}
+          </h3>
+          <p class="text-xs text-slate-500">Every field change is retained permanently.</p>
+        </div>
+        <button type="button" class="btn-ghost btn-xs" (click)="closeAudit()">Close</button>
+      </div>
+
+      <div class="mt-5 space-y-3">
+        @if (auditLoading()) {
+          <p class="py-8 text-center text-sm text-slate-500">Loading audit trail…</p>
+        }
+        @for (log of auditLogs(); track log.id) {
+          <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div class="flex items-center justify-between">
+              <span class="chip" [class]="log.action === 'SoftDeleted' ? 'border border-rose-200 bg-rose-50 text-rose-700' : 'border border-blue-200 bg-blue-50 text-blue-700'">
+                {{ log.action === 'SoftDeleted' ? 'Soft deleted' : 'Updated' }}
+              </span>
+              <span class="text-[11px] text-slate-500">{{ log.timestamp | date: 'dd MMM yyyy, HH:mm' }}</span>
+            </div>
+            <p class="mt-2 text-xs text-slate-600">By <span class="font-semibold text-slate-900">{{ log.editedBy }}</span> — {{ log.reason }}</p>
+
+            <div class="mt-3 space-y-1.5">
+              @for (entry of entries(log.oldValuesJson); track entry.key) {
+                <div class="grid grid-cols-[90px_1fr] gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px]">
+                  <span class="font-semibold uppercase tracking-wider text-slate-500">{{ entry.key }}</span>
+                  <span class="font-mono text-slate-700">
+                    <span class="text-rose-600 line-through">{{ entry.value }}</span>
+                    <span class="mx-1 text-slate-400">→</span>
+                    <span class="text-blue-600 font-bold">{{ valueFor(log.newValuesJson, entry.key) }}</span>
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+        } @empty {
+          <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+            No edits recorded for this ticket yet.
+          </div>
+        }
+      </div>
+    </aside>
+  </div>
+}
+
+<!-- Delete modal -->
+@if (deleteTarget(); as session) {
+  <div class="modal-backdrop" (click)="deleteTarget.set(null)">
+    <div class="modal-card bg-white border border-slate-200 text-slate-800" (click)="$event.stopPropagation()">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-600">Soft delete ticket</p>
+      <h3 class="mt-1 text-lg font-bold text-slate-900">{{ session.vehicleNumber }} • {{ session.slotCode }}</h3>
+      <p class="mt-1 text-xs text-slate-500">
+        The record stays in the database for audit purposes. If the ticket is active, its bay is released.
+      </p>
+
+      <label class="label mt-4">Reason (required)</label>
+      <textarea
+        class="input min-h-24 resize-none"
+        placeholder="e.g. Duplicate entry created by mistake"
+        [ngModel]="deleteReason()"
+        (ngModelChange)="deleteReason.set($event)"
+      ></textarea>
+
+      <div class="mt-4 flex gap-2">
+        <button type="button" class="btn-ghost flex-1" (click)="deleteTarget.set(null)">Cancel</button>
+        <button type="button" class="btn-danger flex-1" [disabled]="!deleteReason().trim() || deleteSaving()" (click)="confirmDelete()">
+          {{ deleteSaving() ? 'Deleting…' : 'Soft delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Rate edit modal -->
+@if (rateEdit(); as card) {
+  <div class="modal-backdrop" (click)="rateEdit.set(null)">
+    <div class="modal-card bg-white border border-slate-200 text-slate-800" (click)="$event.stopPropagation()">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Edit rate card</p>
+      <h3 class="mt-1 text-lg font-bold text-slate-900">{{ meta[card.vehicleType].icon }} {{ meta[card.vehicleType].label }}</h3>
+
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Grace (min)</label>
+          <input type="number" class="input" [ngModel]="rateGrace()" (ngModelChange)="rateGrace.set(+$event)" />
+        </div>
+        <div>
+          <label class="label">Base hours</label>
+          <input type="number" class="input" [ngModel]="rateBaseHours()" (ngModelChange)="rateBaseHours.set(+$event)" />
+        </div>
+        <div>
+          <label class="label">Base rate ₹</label>
+          <input type="number" class="input" [ngModel]="rateBaseRate()" (ngModelChange)="rateBaseRate.set(+$event)" />
+        </div>
+        <div>
+          <label class="label">Extra hourly ₹</label>
+          <input type="number" class="input" [ngModel]="rateExtra()" (ngModelChange)="rateExtra.set(+$event)" />
+        </div>
+        <div class="col-span-2">
+          <label class="label">24-hour cap ₹</label>
+          <input type="number" class="input" [ngModel]="rateCap()" (ngModelChange)="rateCap.set(+$event)" />
+        </div>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button type="button" class="btn-ghost flex-1" (click)="rateEdit.set(null)">Cancel</button>
+        <button type="button" class="btn-primary flex-1" [disabled]="rateSaving()" (click)="saveRate()">
+          {{ rateSaving() ? 'Saving…' : 'Save rate card' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

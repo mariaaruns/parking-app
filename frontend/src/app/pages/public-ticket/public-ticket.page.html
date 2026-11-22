@@ -1,0 +1,183 @@
+<div class="flex min-h-screen justify-center bg-slate-50 px-4 py-6 text-slate-800 sm:py-10">
+  <div class="w-full max-w-[430px] space-y-4">
+    <!-- Brand -->
+    <header class="flex items-center justify-between px-1">
+      <div class="flex items-center gap-2.5">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-sm font-black text-white shadow-glow">P</span>
+        <div>
+          <p class="text-sm font-extrabold tracking-tight text-slate-900">ParkEase</p>
+          <p class="text-[9px] font-semibold uppercase tracking-[0.2em] text-blue-600">Digital parking pass</p>
+        </div>
+      </div>
+      <span class="chip border border-slate-200 bg-white text-slate-700 shadow-sm">
+        <span class="h-1.5 w-1.5 rounded-full" [class]="ticket()?.status === 'Active' ? 'animate-pulse bg-blue-600' : 'bg-slate-400'"></span>
+        {{ ticket()?.status === 'Active' ? 'Live' : 'Closed' }}
+      </span>
+    </header>
+
+    @if (error()) {
+      <div class="card card-pad text-center">
+        <span class="text-4xl">🔍</span>
+        <h1 class="mt-3 text-lg font-bold text-slate-900">Ticket not found</h1>
+        <p class="mt-1 text-sm text-slate-500">{{ error() }}</p>
+        <button type="button" class="btn-ghost mt-4 w-full" (click)="fetch(false)">Try again</button>
+      </div>
+    }
+
+    @if (ticket(); as t) {
+      @if (t.status === 'Active') {
+        <!-- Live pass -->
+        <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl animate-rise">
+          <div class="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 p-5 text-white">
+            <div class="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/20 blur-2xl"></div>
+            <div class="relative flex items-start justify-between">
+              <div>
+                <p class="text-[9px] font-black uppercase tracking-[0.22em] text-blue-100">{{ t.branchName }}</p>
+                <p class="mt-1 text-lg font-black">Parking in progress</p>
+              </div>
+              <span class="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                {{ meta[t.vehicleType].icon }} {{ meta[t.vehicleType].short }}
+              </span>
+            </div>
+
+            <div class="relative mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
+              <div>
+                <p class="text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100">Zone</p>
+                <p class="text-2xl font-extrabold leading-tight text-white">{{ t.zoneName }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100">Slot / Seat</p>
+                <p class="font-mono text-5xl font-black leading-none tracking-tight text-white">{{ t.slotCode }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Vehicle number</p>
+                <p class="mt-1 inline-block rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-1 font-mono text-xl font-black tracking-[0.12em] text-slate-900">
+                  {{ t.vehicleNumber }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                @if (qr()) {
+                  <img [src]="qr()" alt="Scan ticket" class="h-20 w-20" />
+                } @else {
+                  <div class="grid h-20 w-20 place-items-center text-[9px] text-slate-400">QR…</div>
+                }
+              </div>
+            </div>
+
+            <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+              <p class="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">Parked for</p>
+              <p class="mt-1 font-mono text-4xl font-black tabular-nums tracking-tight text-slate-900">{{ elapsedLabel() }}</p>
+              <p class="mt-1 text-[11px] text-slate-500">Entry {{ t.entryTime | date: 'dd MMM, HH:mm' }} UTC</p>
+            </div>
+
+            <div class="mt-3 flex items-end justify-between rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div>
+                <p class="text-[9px] font-semibold uppercase tracking-[0.2em] text-blue-700">Running rent</p>
+                <p class="mt-1 text-3xl font-black text-slate-900">₹{{ t.currentRent.toFixed(2) }}</p>
+                <p class="text-[10px] text-slate-500">Updates automatically • grace period applied</p>
+              </div>
+              <span class="text-3xl">⏱️</span>
+            </div>
+
+            <dl class="mt-4 space-y-2 text-xs">
+              <div class="flex justify-between gap-3">
+                <dt class="text-slate-500">Driver phone</dt>
+                <dd class="font-semibold text-slate-700">{{ t.driverPhone || 'Not provided' }}</dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-slate-500">Ticket reference</dt>
+                <dd class="font-mono text-slate-600">{{ tokenShort(t.publicToken) }}</dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-slate-500">Location</dt>
+                <dd class="max-w-[60%] text-right font-medium text-slate-700">{{ t.branchAddress }}</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
+        <p class="px-2 text-center text-[11px] leading-relaxed text-slate-500">
+          Show this pass at the exit gate. The final amount is calculated when you check out.
+        </p>
+      } @else {
+        <!-- Paid receipt -->
+        <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl animate-rise">
+          <div class="relative border-b border-dashed border-slate-200 p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-[9px] font-black uppercase tracking-[0.22em] text-blue-600">Paid digital receipt</p>
+                <p class="mt-1 text-lg font-black text-slate-900">Thanks for parking</p>
+                <p class="text-[11px] text-slate-500">{{ t.branchName }}</p>
+              </div>
+              <span class="rotate-6 rounded-lg border-2 border-blue-600 bg-blue-50 px-2.5 py-1 text-sm font-black uppercase tracking-widest text-blue-700">
+                Paid
+              </span>
+            </div>
+
+            <div class="mt-6 flex items-end justify-between">
+              <div>
+                <p class="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Total paid</p>
+                <p class="text-4xl font-black text-slate-900">₹{{ t.currentRent.toFixed(2) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Slot</p>
+                <p class="font-mono text-3xl font-black text-blue-600">{{ t.slotCode }}</p>
+                <p class="text-[11px] text-slate-500">{{ t.zoneName }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-5">
+            <div class="rounded-2xl border-2 border-slate-200 bg-slate-50 px-3 py-2 text-center">
+              <p class="font-mono text-xl font-black tracking-[0.12em] text-slate-900">{{ t.vehicleNumber }}</p>
+              <p class="text-[10px] uppercase tracking-wider text-slate-500">{{ meta[t.vehicleType].label }}</p>
+            </div>
+
+            <dl class="mt-4 space-y-2.5 text-xs">
+              <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                <dt class="text-slate-500">Entry</dt>
+                <dd class="font-semibold text-slate-700">{{ t.entryTime | date: 'dd MMM yyyy, HH:mm' }} UTC</dd>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                <dt class="text-slate-500">Exit</dt>
+                <dd class="font-semibold text-slate-700">{{ t.exitTime ? (t.exitTime | date: 'dd MMM yyyy, HH:mm') + ' UTC' : '—' }}</dd>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                <dt class="text-slate-500">Duration</dt>
+                <dd class="font-mono font-semibold text-slate-700">{{ t.elapsedDuration }}</dd>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                <dt class="text-slate-500">Payment mode</dt>
+                <dd class="font-semibold text-slate-700">
+                  {{ t.paymentMode === 'UPI' ? '📱 UPI' : t.paymentMode === 'Card' ? '💳 Card' : '💵 Cash' }}
+                </dd>
+              </div>
+              <div class="flex justify-between gap-3">
+                <dt class="text-slate-500">Receipt no.</dt>
+                <dd class="font-mono text-slate-600">{{ tokenShort(t.publicToken) }}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800">
+              Payment received — this vehicle is checked out and the bay is free.
+            </div>
+          </div>
+        </article>
+
+        <p class="px-2 text-center text-[11px] text-slate-500">Keep this receipt for your records.</p>
+      }
+    }
+
+    <footer class="flex items-center justify-between px-2 pt-1">
+      <p class="text-[10px] text-slate-500">ParkEase • QR access without login</p>
+      <button type="button" class="text-[10px] font-semibold text-slate-500 transition hover:text-blue-600" (click)="fetch(false)">
+        Refresh
+      </button>
+    </footer>
+  </div>
+</div>

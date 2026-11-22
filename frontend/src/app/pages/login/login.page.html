@@ -1,0 +1,137 @@
+<div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+  <!-- Brand panel -->
+  <section class="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-10 text-white lg:flex xl:p-14">
+    <div class="absolute -left-24 top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-sky-300/15 blur-3xl"></div>
+
+    <div class="relative">
+      <div class="flex items-center gap-3">
+        <span class="grid h-11 w-11 place-items-center rounded-2xl bg-white text-lg font-black text-blue-600 shadow-md">P</span>
+        <div>
+          <p class="text-xl font-extrabold tracking-tight text-white">ParkEase</p>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-blue-100">Multi-Vehicle Parking OS</p>
+        </div>
+      </div>
+
+      <h1 class="mt-16 max-w-xl text-balance text-5xl font-extrabold leading-[1.05] tracking-tight text-white xl:text-6xl">
+        Every bay.<br />
+        Every vehicle.<br />
+        <span class="text-blue-100">One live system.</span>
+      </h1>
+      <p class="mt-6 max-w-md text-base leading-relaxed text-blue-100">
+        Run bikes, cars and heavy vehicles from a single gate workspace — with QR passes,
+        audited edits and branch-level revenue insight.
+      </p>
+    </div>
+
+    <div class="relative grid max-w-xl grid-cols-3 gap-3">
+      @for (type of vehicleTypes; track type) {
+        <div class="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+          <span class="text-2xl">{{ meta[type].icon }}</span>
+          <p class="mt-2 text-sm font-bold text-white">{{ meta[type].label }}</p>
+          <p class="text-[11px] text-blue-100">Zone {{ zoneFor(type) }}</p>
+        </div>
+      }
+    </div>
+
+    <div class="relative flex flex-wrap gap-x-6 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
+      <span>JWT + RBAC</span>
+      <span>•</span>
+      <span>Live rent engine</span>
+      <span>•</span>
+      <span>Immutable audit trail</span>
+    </div>
+  </section>
+
+  <!-- Form panel -->
+  <section class="flex items-center justify-center bg-slate-50 px-4 py-10 sm:px-8">
+    <div class="w-full max-w-md">
+      <div class="mb-8 flex items-center gap-3 lg:hidden">
+        <span class="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600 text-lg font-black text-white shadow-glow">P</span>
+        <div>
+          <p class="text-lg font-extrabold text-slate-900">ParkEase</p>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-600">Multi-Vehicle Ops</p>
+        </div>
+      </div>
+
+      <div class="card card-pad border border-slate-200 bg-white shadow-xl">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600">Secure sign in</p>
+        <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Welcome back</h2>
+        <p class="mt-1 text-sm text-slate-500">Use your branch credentials to open the workspace.</p>
+
+        <form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
+          <div>
+            <label class="label" for="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              class="input"
+              autocomplete="username"
+              placeholder="you@parking.app"
+              formControlName="email"
+            />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <p class="mt-1.5 text-xs text-rose-500">Enter a valid email address.</p>
+            }
+          </div>
+
+          <div>
+            <label class="label" for="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              class="input"
+              autocomplete="current-password"
+              placeholder="••••••••"
+              formControlName="password"
+            />
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <p class="mt-1.5 text-xs text-rose-500">Password is required.</p>
+            }
+          </div>
+
+          @if (error()) {
+            <div class="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">
+              {{ error() }}
+            </div>
+          }
+
+          <button type="submit" class="btn-primary w-full" [disabled]="loading()">
+            @if (loading()) {
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+              Signing in…
+            } @else {
+              Sign in to workspace
+              <span aria-hidden="true">→</span>
+            }
+          </button>
+        </form>
+
+        <div class="mt-6 border-t border-slate-100 pt-5">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Demo accounts — one-click fill</p>
+          <div class="mt-3 grid gap-2">
+            @for (demo of demos; track demo.email) {
+              <button
+                type="button"
+                class="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-left transition hover:border-blue-300 hover:bg-blue-50/50"
+                (click)="fill(demo)"
+              >
+                <span class="flex items-center gap-3">
+                  <span class="grid h-8 w-8 place-items-center rounded-lg text-xs font-black shadow-sm" [class]="demo.accent">
+                    {{ demo.role.charAt(0) }}
+                  </span>
+                  <span>
+                    <span class="block text-sm font-bold text-slate-800">{{ demo.label }}</span>
+                    <span class="block text-[11px] text-slate-500">{{ demo.email }}</span>
+                  </span>
+                </span>
+                <span class="text-xs font-semibold text-slate-400 transition group-hover:text-blue-600">Fill →</span>
+              </button>
+            }
+          </div>
+          <p class="mt-3 text-center text-[11px] text-slate-500">Password for all demo accounts: <span class="font-mono text-slate-700 font-semibold">Admin&#64;1234</span> / <span class="font-mono text-slate-700 font-semibold">Staff&#64;1234</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
